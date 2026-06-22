@@ -6,11 +6,18 @@
 #define VC_EXTRALEAN
 #include <Windows.h>
 
+#include <ViGEm/Client.h>
+
 #include "gamepad.h"
 #include "gamepad_window.h"
 #include "utils.h"
 
 #define WM_CONFIGCHANGED (WM_USER + 1)
+
+// Global Xbox Controller State
+PVIGEM_CLIENT g_client;
+PVIGEM_TARGET g_pad;
+XUSB_REPORT g_report;
 
 typedef struct
 {
@@ -127,6 +134,24 @@ int CALLBACK WinMain(
 		return -1;
 	}
 
+	// --- VIGEM INITIALIZATION ---
+	g_client = vigem_alloc();
+	if (g_client == NULL) {
+		MessageBox(NULL, "Not enough memory for ViGEmClient", "Error", MB_OK);
+		return -1;
+	}
+
+	VIGEM_ERROR verr = vigem_connect(g_client);
+	if (!VIGEM_SUCCESS(verr)) {
+		MessageBox(NULL, "Could not connect to ViGEmBus. Is the driver installed?", "Error", MB_OK);
+		return -1;
+	}
+
+	g_pad = vigem_target_x360_alloc();
+	vigem_target_add(g_client, g_pad);
+	XUSB_REPORT_INIT(&g_report);
+	// ----------------------------
+
 	// Display gamepad
 	RegisterGamepadWindowClass();
 	InitializeGamepad(&state.gamepad);
@@ -171,6 +196,13 @@ int CALLBACK WinMain(
 	WaitForSingleObject(threadHandle, INFINITE);
 	DeinitializeGamepad(&state.gamepad);
 	FreeGamepad(&state.gamepad);
+
+	// --- VIGEM CLEANUP ---
+	vigem_target_remove(g_client, g_pad);
+	vigem_target_free(g_pad);
+	vigem_disconnect(g_client);
+	vigem_free(g_client);
+	// ---------------------
 
 	return (int)msg.wParam;
 }

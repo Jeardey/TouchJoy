@@ -5,11 +5,18 @@
 #include <Windows.h>
 #include <windowsx.h>
 
+#include <ViGEm/Client.h>
+
 #include "utils.h"
 
 #define MOUSEEVENTF_FROMTOUCH 0xFF515700
 #define BUTTON(HWND, VAR) \
 	Button* VAR = (Button*)GetWindowLongPtr(HWND, GWLP_USERDATA);
+
+// EXTERN VIGEM STATE
+extern PVIGEM_CLIENT g_client;
+extern PVIGEM_TARGET g_pad;
+extern XUSB_REPORT g_report;
 
 typedef enum
 {
@@ -96,52 +103,32 @@ void HandleWheelButton(Button* button, bool down)
 	SendInput(2, inputs, sizeof(INPUT));
 }
 
+// XBOX 360 CONTROLLER JOYSTICK UPDATE
 void HandleStickButton(Button* button, TouchEvent event, int touchX, int touchY)
 {
-	float joyX, joyY;
+	float joyX = 0.0f;
+	float joyY = 0.0f;
 
-	if (event == TOUCH_UP)
+	if (event != TOUCH_UP)
 	{
-		// If the touch is released, the stick moves to its center position
-		joyX = 0.f;
-		joyY = 0.f;
-	}
-	else
-	{
-		// In other cases, use the real touch position to calculate stick
-		// position
+		// Calculate joystick position (-1.0 to 1.0)
+		joyX = (float)touchX / (float)button->width * 2.0f - 1.0f;
+		joyY = (float)touchY / (float)button->height * 2.0f - 1.0f;
 
-		joyX = (float)touchX / (float)button->width * 2.f - 1.f;
-		joyY = (float)touchY / (float)button->height * 2.f - 1.f;
-	}
-
-	bool newStates[4];
-	float threshold = button->extras.stick.threshold;
-	newStates[STICK_UP]    = joyY < -threshold;
-	newStates[STICK_DOWN]  = joyY >  threshold;
-	newStates[STICK_LEFT]  = joyX < -threshold;
-	newStates[STICK_RIGHT] = joyX >  threshold;
-
-	INPUT inputs[4];
-	int numInputs = 0;
-
-	for (int i = 0; i < 4; ++i)
-	{
-		if (newStates[i] != button->extras.stick.states[i])
-		{
-			INPUT* input = &inputs[numInputs++];
-			input->type = INPUT_KEYBOARD;
-			input->ki.wVk = button->extras.stick.codes[i];
-			input->ki.dwFlags = newStates[i] ? 0 : KEYEVENTF_KEYUP;
-			input->ki.wScan = 0;
-			input->ki.time = 0;
-			input->ki.dwExtraInfo = 0;
-		}
-
-		button->extras.stick.states[i] = newStates[i];
+		// Clamp values to a circle
+		if (joyX < -1.0f) joyX = -1.0f;
+		if (joyX > 1.0f) joyX = 1.0f;
+		if (joyY < -1.0f) joyY = -1.0f;
+		if (joyY > 1.0f) joyY = 1.0f;
 	}
 
-	SendInput(numInputs, inputs, sizeof(INPUT));
+	// Xbox 360 thumbsticks use SHORT values from -32768 to 32767.
+	// NOTE: Windows screen Y goes down, but Xbox thumbstick Y goes UP. We invert joyY.
+	g_report.sThumbLX = (SHORT)(joyX * 32767.0f);
+	g_report.sThumbLY = (SHORT)(joyY * -32767.0f); 
+
+	// Send the updated state to the virtual controller
+	vigem_target_x360_update(g_client, g_pad, g_report);
 }
 
 void HandleUpDown(Button* button, bool down)
