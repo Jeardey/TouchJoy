@@ -28,8 +28,8 @@ jobs:
       run: |
         mkdir -p TouchJoy-Release
         cp build/Release/TouchJoy.exe TouchJoy-Release/
-        cp -r data TouchJoy-Release/data
-        cp data/sample.ini TouchJoy-Release/config.ini
+        cp data/* TouchJoy-Release/
+        mv TouchJoy-Release/sample.ini TouchJoy-Release/config.ini
 
     - name: Upload Downloadable Artifact
       uses: actions/upload-artifact@v4
