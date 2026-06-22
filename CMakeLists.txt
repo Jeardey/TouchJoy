@@ -26,8 +26,8 @@ add_executable(TouchJoy WIN32
     src/main.c
     src/utils.c
 )
-# Link ViGEm and Windows APIs
-target_link_libraries(TouchJoy PRIVATE ViGEmClient setupapi.lib winmm.lib)
+# Link ViGEm, Windows APIs, and Shell32 (for the browser prompt)
+target_link_libraries(TouchJoy PRIVATE ViGEmClient setupapi.lib winmm.lib shell32.lib)
 
 # 2. Test Console Application
 add_executable(TouchJoyTest
@@ -38,4 +38,4 @@ add_executable(TouchJoyTest
     src/utils.c
 )
 target_compile_definitions(TouchJoyTest PRIVATE _TEST)
-target_link_libraries(TouchJoyTest PRIVATE ViGEmClient setupapi.lib winmm.lib)
+target_link_libraries(TouchJoyTest PRIVATE ViGEmClient setupapi.lib winmm.lib shell32.lib)

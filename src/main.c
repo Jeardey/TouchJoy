@@ -5,6 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define VC_EXTRALEAN
 #include <Windows.h>
+#include <shellapi.h> // Required for ShellExecute (opening the browser)
 
 #include <ViGEm/Client.h>
 
@@ -143,7 +144,18 @@ int CALLBACK WinMain(
 
 	VIGEM_ERROR verr = vigem_connect(g_client);
 	if (!VIGEM_SUCCESS(verr)) {
-		MessageBox(NULL, "Could not connect to ViGEmBus. Is the driver installed?", "Error", MB_OK);
+		int response = MessageBox(NULL, 
+			"Could not connect to ViGEmBus.\n\nThe virtual gamepad driver is not installed. Would you like to open your browser to download the official installer now?", 
+			"ViGEmBus Driver Required", 
+			MB_YESNO | MB_ICONWARNING | MB_TOPMOST);
+
+		if (response == IDYES) {
+			// Opens the user's default browser to the official ViGEmBus download page
+			ShellExecute(NULL, "open", "https://github.com/nefarius/ViGEmBus/releases/latest", NULL, NULL, SW_SHOWNORMAL);
+		}
+		
+		// Clean up the memory we allocated before closing
+		vigem_free(g_client);
 		return -1;
 	}
 
