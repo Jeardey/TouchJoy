@@ -4,6 +4,7 @@
 #define VC_EXTRALEAN
 #include <Windows.h>
 #include <windowsx.h>
+#include <string.h> // Required for _stricmp
 
 #include <ViGEm/Client.h>
 
@@ -60,6 +61,54 @@ void HandleKeyButton(Button* button, bool down)
 	SendInput(1, &input, sizeof(INPUT));
 }
 
+// --- NEW XBOX BUTTON MAPPING ---
+USHORT GetXboxButtonMask(const char* name)
+{
+	if (_stricmp(name, "a") == 0) return XUSB_GAMEPAD_A;
+	if (_stricmp(name, "b") == 0) return XUSB_GAMEPAD_B;
+	if (_stricmp(name, "x") == 0) return XUSB_GAMEPAD_X;
+	if (_stricmp(name, "y") == 0) return XUSB_GAMEPAD_Y;
+	if (_stricmp(name, "lb") == 0 || _stricmp(name, "l") == 0) return XUSB_GAMEPAD_LEFT_SHOULDER;
+	if (_stricmp(name, "rb") == 0 || _stricmp(name, "r") == 0) return XUSB_GAMEPAD_RIGHT_SHOULDER;
+	if (_stricmp(name, "start") == 0) return XUSB_GAMEPAD_START;
+	if (_stricmp(name, "select") == 0 || _stricmp(name, "back") == 0) return XUSB_GAMEPAD_BACK;
+	if (_stricmp(name, "up") == 0) return XUSB_GAMEPAD_DPAD_UP;
+	if (_stricmp(name, "down") == 0) return XUSB_GAMEPAD_DPAD_DOWN;
+	if (_stricmp(name, "left") == 0) return XUSB_GAMEPAD_DPAD_LEFT;
+	if (_stricmp(name, "right") == 0) return XUSB_GAMEPAD_DPAD_RIGHT;
+	if (_stricmp(name, "ls") == 0 || _stricmp(name, "l3") == 0) return XUSB_GAMEPAD_LEFT_THUMB;
+	if (_stricmp(name, "rs") == 0 || _stricmp(name, "r3") == 0) return XUSB_GAMEPAD_RIGHT_THUMB;
+	return 0;
+}
+
+void HandleXboxButton(Button* button, bool down)
+{
+	// Handle Analog Triggers (LT / RT)
+	if (_stricmp(button->name, "lt") == 0) {
+		g_report.bLeftTrigger = down ? 255 : 0;
+	}
+	else if (_stricmp(button->name, "rt") == 0) {
+		g_report.bRightTrigger = down ? 255 : 0;
+	}
+	else {
+		// Handle Digital Buttons
+		USHORT mask = GetXboxButtonMask(button->name);
+		if (mask != 0) {
+			if (down) g_report.wButtons |= mask;
+			else      g_report.wButtons &= ~mask;
+		}
+		else {
+			// Fallback: If it's not a standard Xbox name, send a normal keyboard key
+			HandleKeyButton(button, down);
+			return;
+		}
+	}
+
+	// Push the updated state to the virtual controller
+	vigem_target_x360_update(g_client, g_pad, g_report);
+}
+// -------------------------------
+
 void HandleQuitButton(Button* button, bool down)
 {
 	UNUSED(button);
@@ -71,17 +120,11 @@ void HandleWheelButton(Button* button, bool down)
 {
 	if (!down) { return; }
 
-	// Scrolling is a bit tricky.
-	// First we need to move the mouse to the target area.
-	// Then we simulate a scroll event.
 	INPUT inputs[2];
 
-	// Move the mouse to a point slightly above and to the left of the button's
-	// top left corner
 	inputs[0].type = INPUT_MOUSE;
 	int x = GetButtonX(button) - 5;
 	int y = GetButtonY(button) - 5;
-	// Windows uses a weird coordinate system for mouse: [0, 65535]
 	int absX = (int)((float)x / (float)GetSystemMetrics(SM_CXSCREEN) * 65535.f);
 	int absY = (int)((float)y / (float)GetSystemMetrics(SM_CYSCREEN) * 65535.f);
 	inputs[0].mi.dx = absX;
@@ -91,7 +134,6 @@ void HandleWheelButton(Button* button, bool down)
 	inputs[0].mi.time = 0;
 	inputs[0].mi.dwExtraInfo = 0;
 
-	// Scroll
 	inputs[1].type = INPUT_MOUSE;
 	inputs[1].mi.dx = 0;
 	inputs[1].mi.dy = 0;
@@ -103,7 +145,6 @@ void HandleWheelButton(Button* button, bool down)
 	SendInput(2, inputs, sizeof(INPUT));
 }
 
-// XBOX 360 CONTROLLER JOYSTICK UPDATE
 void HandleStickButton(Button* button, TouchEvent event, int touchX, int touchY)
 {
 	float joyX = 0.0f;
@@ -111,23 +152,18 @@ void HandleStickButton(Button* button, TouchEvent event, int touchX, int touchY)
 
 	if (event != TOUCH_UP)
 	{
-		// Calculate joystick position (-1.0 to 1.0)
 		joyX = (float)touchX / (float)button->width * 2.0f - 1.0f;
 		joyY = (float)touchY / (float)button->height * 2.0f - 1.0f;
 
-		// Clamp values to a circle
 		if (joyX < -1.0f) joyX = -1.0f;
 		if (joyX > 1.0f) joyX = 1.0f;
 		if (joyY < -1.0f) joyY = -1.0f;
 		if (joyY > 1.0f) joyY = 1.0f;
 	}
 
-	// Xbox 360 thumbsticks use SHORT values from -32768 to 32767.
-	// NOTE: Windows screen Y goes down, but Xbox thumbstick Y goes UP. We invert joyY.
 	g_report.sThumbLX = (SHORT)(joyX * 32767.0f);
 	g_report.sThumbLY = (SHORT)(joyY * -32767.0f); 
 
-	// Send the updated state to the virtual controller
 	vigem_target_x360_update(g_client, g_pad, g_report);
 }
 
@@ -136,7 +172,8 @@ void HandleUpDown(Button* button, bool down)
 	switch (button->type)
 	{
 	case BTN_KEY:
-		HandleKeyButton(button, down);
+		// Route through our new Xbox Button handler!
+		HandleXboxButton(button, down);
 		break;
 	case BTN_WHEEL:
 		HandleWheelButton(button, down);
@@ -150,7 +187,7 @@ void HandleUpDown(Button* button, bool down)
 LRESULT CALLBACK OnTouch(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	BUTTON(hWnd, button);
-	TOUCHINPUT touch; //Only handle the first touch on any button
+	TOUCHINPUT touch;
 
 	if (GetTouchInputInfo((HTOUCHINPUT)lParam, 1, &touch, sizeof(TOUCHINPUT)))
 	{
