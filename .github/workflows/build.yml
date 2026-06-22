@@ -1,0 +1,38 @@
+name: Build and Release TouchJoy
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+  workflow_dispatch: # Lets you click a button to run it manually
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Configure CMake
+      # This generates the Visual Studio build files automatically
+      run: cmake -B build -S .
+
+    - name: Compile Project
+      # This actually compiles the .exe files in Release mode
+      run: cmake --build build --config Release
+
+    - name: Package Artifacts
+      # Move the compiled .exe and the data folder into one clean folder
+      shell: bash
+      run: |
+        mkdir -p TouchJoy-Release
+        cp build/Release/TouchJoy.exe TouchJoy-Release/
+        cp -r data TouchJoy-Release/data
+
+    - name: Upload Downloadable Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TouchJoy-Windows
+        path: TouchJoy-Release/
