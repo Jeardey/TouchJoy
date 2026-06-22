@@ -27,11 +27,8 @@ jobs:
       shell: bash
       run: |
         mkdir -p TouchJoy-Release
-        # Copy the executable
         cp build/Release/TouchJoy.exe TouchJoy-Release/
-        # Copy the data folder (contains images for the buttons)
         cp -r data TouchJoy-Release/data
-        # Create a default config.ini so double-clicking the exe works!
         cp data/sample.ini TouchJoy-Release/config.ini
 
     - name: Upload Downloadable Artifact
