@@ -1,35 +1,42 @@
-TouchJoy - On screen gamepad for touch-screen Windows devices
+TouchJoy - On-screen gamepad for touch-screen Windows devices
 =============================================================
 
 ## What is it?
 
-This program helps you create an on-screen gamepad so that you can game on a touch-enabled Windows device:
+This program creates a highly customizable on-screen virtual gamepad so you can play modern PC games on a touch-enabled Windows device (like a Microsoft Surface, ROG Ally, or Windows tablet).
 
 ![screenshot](data/screenshot.jpg)
 
-The layout is fully customizable using a simple [ini file](data/sample.ini).
-The file is also automatically reloaded whenever it is saved so that you can tweak and adjust it quickly.
+Unlike legacy mappers that just send fake keyboard presses, **TouchJoy natively emulates an Xbox 360 Controller**. This means it is instantly recognized by modern games via XInput with full analog joystick and trigger support.
 
-## Why?
+The layout is fully customizable using a simple `config.ini` file. The file is automatically reloaded whenever it is saved, so you can tweak and adjust your layout in real-time without restarting the app.
 
-I want to play Windows games lying down and there are not many good on-screen gamepad applications for Windows.
-It is also a chance to learn how far I can go with only C99 and as few external libraries as possible.
+## Prerequisites
 
-## How to build?
+Because TouchJoy emulates a physical hardware controller, it requires the **ViGEmBus** kernel-mode driver to be installed on your system.
 
-You need [GENie](https://github.com/bkaradzic/genie) and Visual Studio 2013+ since the project is written in C99.
+* If you do not have it installed, TouchJoy will automatically prompt you on startup and open your browser to the [Official ViGEmBus GitHub Releases](https://github.com/nefarius/ViGEmBus/releases/latest) page so you can download it safely.
 
-`vs2013.bat` can be used to generate a solution for Visual Studio 2013.
+## How to install and use?
 
-## How to use?
+**The easy way:**
+1. Go to the **Actions** or **Releases** tab on this GitHub repository.
+2. Download the latest `TouchJoy-Windows.zip` artifact.
+3. Extract the folder anywhere on your PC.
+4. Double click `TouchJoy.exe`. 
+5. To change your layout or map different buttons, open `config.ini` in any text editor. (For now, the code and `config.ini` itself are the best manuals).
 
-For now, the code and [this sample](data/sample.ini) are the only manuals.
-I'm terribly sorry.
+## How to build from source?
 
-## External libraries
+The project has been modernized to use **CMake**. It requires Visual Studio 2019/2022 (with the Desktop C++ workload) or any modern C99-compliant compiler.
 
-* [stb_image](https://github.com/nothings/stb): image loading
-* [gb_ini](https://github.com/gingerBill/gb): ini parsing
-* [utest](https://github.com/evolutional/utest): unit testing
+```bash
+# Clone the repository
+git clone [https://github.com/YOUR-USERNAME/TouchJoy.git](https://github.com/YOUR-USERNAME/TouchJoy.git)
+cd TouchJoy
 
-Special thanks to Sean Barrett for providing an useful [list](https://github.com/nothings/stb/blob/master/docs/other_libs.md) of single-header libraries.
+# Configure the build system (this will automatically fetch ViGEmClient)
+cmake -B build -S .
+
+# Compile the project
+cmake --build build --config Release
